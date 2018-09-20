@@ -1,0 +1,127 @@
+package RestApi
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+)
+
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
+type RuleLog struct {
+	ItemAvailable bool
+	RmsSkuID      string
+	Timestamp     string
+	TraceContext  string
+	Rules         []Rule
+}
+
+type Rule struct {
+	Name   string
+	Stores []interface{}
+}
+
+var r RuleLog
+
+func ExtractJSONFromDynamoDB(guid string) {
+	fmt.Println("Inside dynamoDB!")
+
+	//Rest-api implementation
+
+	/*	router := mux.NewRouter()
+		router.HandleFunc("/getDetails/{guid}", GetDetails).Methods("GET")
+		log.Fatal(http.ListenAndServe(":8080", router))*/
+
+	ses, err := session.NewSession(&aws.Config{Region: aws.String("us-west-2")})
+	check(err)
+
+	/*	val, err := ses.Config.Credentials.Get()
+		fmt.Println("AccessKeyId : " + val.AccessKeyID)
+		fmt.Println("Session token : " + val.SessionToken)
+		fmt.Println("ProvoderName : " + val.ProviderName)
+		fmt.Println("Secret Access key : " + val.SecretAccessKey)*/
+
+	svc := dynamodb.New(ses)
+
+	//creating a new table
+	/*	input := &dynamodb.CreateTableInput{
+			AttributeDefinitions: []*dynamodb.AttributeDefinition{
+				{
+					AttributeName: aws.String("TraceContext"),
+					AttributeType: aws.String("S"),
+				},
+			},
+			KeySchema: []*dynamodb.KeySchemaElement{
+				{
+					AttributeName: aws.String("TraceContext"),
+					KeyType:       aws.String("HASH"),
+				},
+			},
+
+			ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
+				ReadCapacityUnits:  aws.Int64(5),
+				WriteCapacityUnits: aws.Int64(5),
+			},
+			TableName: aws.String("DebugTool"),
+		}
+
+		result, err := svc.CreateTable(input)
+		check(err)
+		fmt.Println(result)*/
+
+	//reading an item from dynamodb Table
+	params := &dynamodb.GetItemInput{
+		TableName: aws.String("DebugTool"),
+		Key: map[string]*dynamodb.AttributeValue{
+			"TraceContext": {
+				S: aws.String("streamaudit_93367ed5-36e7-48bd-448f-0eb9860baa8d|fc06020b-05a7-43f6-442e-35e7e1864240"),
+			},
+		},
+		//	ProjectionExpression: aws.String("RuleLog"),
+	}
+
+	result, err := svc.GetItem(params)
+	check(err)
+
+	fmt.Println("Output from dynamoDB")
+	fmt.Println(result)
+
+	err = dynamodbattribute.UnmarshalMap(result.Item, &r)
+
+	check(err)
+
+	fmt.Println("***After UnmarshalMap***")
+	fmt.Println(r)
+
+	fmt.Println()
+
+	jj, err := json.Marshal(r)
+	os.Stdout.Write(jj)
+
+}
+
+/*func GetDetails(w http.ResponseWriter, r *http.Request) {
+	var guid string
+	params := mux.Vars(r)
+	fmt.Println("value from the request : ")
+	fmt.Println(params)
+	for k, v := range params {
+		fmt.Println(k, ":", v)
+		guid = v
+	}
+	ExtractJSONFromDynamoDB(guid)
+
+}
+
+func ExtractJSONFromDynamoDB(v string) {
+	fmt.Println("Inside this function" + v)
+}*/
